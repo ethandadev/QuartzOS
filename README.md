@@ -80,7 +80,7 @@ not liable for data loss, privacy incidents, security issues, application
 malfunctions, system instability, or other consequences resulting from the use
 of Quartz.
 
-This notice is not legal advice. See [`LICENSE`](./LICENSE) for the license
+This notice is not legal advice. See [`LICENSE`](./LICENSE.md) for the license
 governing Quartz itself.
 
 ## Third-Party Software
