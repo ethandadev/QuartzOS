@@ -104,4 +104,4 @@ trademarks remain the property of their respective owners.
 
 ## License
 
-Quartz is licensed under the [MIT License](./LICENSE).
+Quartz is licensed under the [MIT License](./LICENSE.md).
