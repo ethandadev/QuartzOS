@@ -59,3 +59,49 @@ Built by [@ethandadev](https://github.com/ethandadev).
 > ask it to do.
 
 ## Legal Notice
+
+> [!WARNING]
+> Quartz requires macOS Screen Recording and Accessibility permissions. It
+> captures application windows and forwards mouse and keyboard input to them.
+> Review the source code carefully before granting these permissions.
+
+Quartz is an independent, open-source project. It is not affiliated with,
+endorsed by, or sponsored by Apple Inc. “Apple,” “macOS,” “ScreenCaptureKit,”
+and other Apple product or service names are trademarks of Apple Inc.
+
+Quartz is intended to be used only with applications, accounts, content, and
+data that you own or are authorized to access. Do not use Quartz to monitor,
+record, control, or interact with another person's device or data without
+permission.
+
+The software is provided “as is,” without warranties of any kind. To the
+maximum extent permitted by applicable law, the authors and contributors are
+not liable for data loss, privacy incidents, security issues, application
+malfunctions, system instability, or other consequences resulting from the use
+of Quartz.
+
+This notice is not legal advice. See [`LICENSE`](./LICENSE) for the license
+governing Quartz itself.
+
+## Third-Party Software
+
+Quartz uses third-party software distributed under its own licenses:
+
+- `glcontext`
+- `moderngl`
+- `numpy`
+- `psutil`
+- `pygame-ce` — LGPL-2.1-or-later
+- `pyobjc-core`
+- `pyobjc-framework-Cocoa`
+- `pyobjc-framework-CoreMedia`
+- `pyobjc-framework-Quartz`
+- `pyobjc-framework-ScreenCaptureKit`
+
+See [`THIRD_PARTY_NOTICES.md`](./THIRD_PARTY_NOTICES.md) for dependency
+licenses and attribution information. Third-party packages, names, and
+trademarks remain the property of their respective owners.
+
+## License
+
+Quartz is licensed under the [MIT License](./LICENSE).
