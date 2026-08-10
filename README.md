@@ -27,20 +27,14 @@
 
 > macOS, but make it weird.
 
-Quartz is a custom desktop environment built in Python with Pygame and PyObjC.
-It takes real macOS application windows, pulls them into its own interface,
-and lets you interact with them as if they were running inside a completely
-different operating system.
 
-Under the hood, Quartz uses Apple's ScreenCaptureKit to capture windows and
-forwards your mouse clicks and keyboard input back to the real applications.
-So while the desktop looks and feels different, your macOS apps keep working
-normally.
+Quartz OS is a custom desktop enviorment built in Python with Pygame and PyObjC. It can take a real macOS app window, put it into our own interface, then lets you still interact with the application as if you were in a whole different operating system. This also has added benefits such as having more customizability, being able to build your own "Settings" app or whatever.
 
-I started Quartz because I was bored of the usual macOS desktop and wanted to
-see how far I could push the idea of building a second desktop on top of the
-first one. It is part experiment, part game, and part “what if macOS worked
-like this instead?”
+
+Under the hood, Quartz OS uses Apple's own ScreenCaptureKit api to capture windows and forwards your mouse and keyboard inputs back to the real applications. So while the desktop looks and feels different, your macOS apps keep working normally.
+
+
+I started Quartz OS because I became bored of the usual macOS desktop and I had an itch on working on a big project, so then I started planning and I came up with this idea. I decided to use Python and Pygame as I have alot of experience with them but to keep it still very smooth and optimized, most of the heavy lifting is done through C-backed framework calls.
 
 Built by [@ethandadev](https://github.com/ethandadev).
 
@@ -54,14 +48,33 @@ Built by [@ethandadev](https://github.com/ethandadev).
 - Still very much a work in progress.
 
 > [!NOTE]
-> Quartz is experimental software. Expect bugs, strange behavior, unfinished
+> Quartz OS is experimental software. Expect bugs, strange behavior, unfinished
 > features, and possibly a desktop that does something you definitely did not
-> ask it to do.
+> ask it to do. 
+> Quartz is also my own personal project, don't ask me to keep consistently updating,
+> maintaining and fixing bugs for Quartz OS.
+
+## How to use
+> [!NOTE]
+> As this is my personal project, I won't really provide in-depth documentation on how to use and troubleshoot Quartz OS, though I will be providing a simple how to get Quartz OS running.
+
+As any other project, first download the source files as a zip onto your Desktop.
+
+Then extract the contents of the zip and open a fresh terminal tab inside this new folder.
+
+Execute this command in your terminal to install the required dependencies for this project.
+`python3 -m venv venv && source venv/bin/activate && pip3 -r requirements.txt`
+
+Finally to start the os execute this command `python3 start.py`
+
+##### Enjoy!
+
+---
 
 ## Legal Notice
 
 > [!WARNING]
-> Quartz requires macOS Screen Recording and Accessibility permissions. It
+> Quartz OS requires macOS Screen Recording and Accessibility permissions. It
 > captures application windows and forwards mouse and keyboard input to them.
 > Review the source code carefully before granting these permissions.
 
