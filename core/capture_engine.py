@@ -1,10 +1,11 @@
 import objc
+from Foundation import NSObject
 from ScreenCaptureKit import SCStreamOutputTypeScreen, SCShareableContent
 from Quartz import CVPixelBufferLockBaseAddress, CVPixelBufferUnlockBaseAddress, kCVPixelBufferLock_ReadOnly, CVPixelBufferGetHeight, CVPixelBufferGetWidth, CVPixelBufferGetBytesPerRow, CVPixelBufferGetBaseAddress
 import numpy as np
 import pygame
 
-class StreamOutputHandler(objc.NSObject):
+class StreamOutputHandler(NSObject, protocols=[objc.protocolNamed('SCStreamOutput')]):
     def init(self):
         self = objc.super(StreamOutputHandler, self).init()
         if self is None:

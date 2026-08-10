@@ -4,7 +4,9 @@ numpy==2.5.2
 psutil==7.2.2
 pygame-ce==2.5.8
 pyobjc-core==12.2.1
+pyobjc-framework-ApplicationServices==12.2.1
 pyobjc-framework-Cocoa==12.2.1
 pyobjc-framework-CoreMedia==12.2.1
+pyobjc-framework-CoreText==12.2.1
 pyobjc-framework-Quartz==12.2.1
 pyobjc-framework-ScreenCaptureKit==12.2.1

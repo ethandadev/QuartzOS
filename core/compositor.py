@@ -1,11 +1,11 @@
 """
-core/quartz_compositor.py
+core/compositor.py
 
 Manages the pygame display window and main render loop for Quartz OS.
 
 """
 import pygame as pg
-from display_utils import get_backing_scale_factor
+from core.display_utils import get_backing_scale_factor
 
 
 class QuartzCompositor:
