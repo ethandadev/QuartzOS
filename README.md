@@ -14,7 +14,7 @@
     <img src="https://img.shields.io/badge/Website-4285F4?logo=googlechrome&logoColor=white" alt="Website">
   </a>
   <br>
-  <a href="./LICENSE">
+  <a href="./LICENSE.md">
     <img src="https://img.shields.io/badge/License-MIT-4CAF50?logo=opensourceinitiative&logoColor=white" alt="MIT License">
   </a>
   <img src="https://img.shields.io/badge/Platform-macOS-000000?logo=apple&logoColor=white" alt="macOS">
