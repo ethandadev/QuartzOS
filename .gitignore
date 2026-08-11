@@ -23,3 +23,7 @@ dist/
 
 # macOS
 .DS_Store
+
+# Test file
+test.py
+

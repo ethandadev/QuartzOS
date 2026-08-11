@@ -11,4 +11,4 @@ def get_backing_scale_factor():
     Returns the backing scale factor of the main screen.
     """
     screen = NSScreen.mainScreen()
-    return screen.backingScaleFactor() if screen else 2.0
+    return screen.backingScaleFactor() if screen else 1.0

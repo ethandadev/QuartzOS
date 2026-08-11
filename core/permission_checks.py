@@ -21,8 +21,6 @@ def check_screen_recording_permission(callback):
     def handler(content, error):
         if error is not None:
             callback(False, str(error))
-        elif content is None or len(content.windows()) == 0:
-            callback(False, "No windows returned — check Screen Recording permission")
         else:
             callback(True, None)
 

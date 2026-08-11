@@ -1,7 +1,8 @@
 import objc
 from Foundation import NSObject
-from ScreenCaptureKit import SCStreamOutputTypeScreen, SCShareableContent
-from Quartz import CVPixelBufferLockBaseAddress, CVPixelBufferUnlockBaseAddress, kCVPixelBufferLock_ReadOnly, CVPixelBufferGetHeight, CVPixelBufferGetWidth, CVPixelBufferGetBytesPerRow, CVPixelBufferGetBaseAddress
+from ScreenCaptureKit import SCStreamOutputTypeScreen, SCShareableContent, SCContentFilter, SCStreamConfiguration, SCStream
+from Quartz import CVPixelBufferLockBaseAddress, CVPixelBufferUnlockBaseAddress, kCVPixelBufferLock_ReadOnly, CVPixelBufferGetHeight, CVPixelBufferGetWidth, CVPixelBufferGetBytesPerRow, CVPixelBufferGetBaseAddress, kCVPixelFormatType_32BGRA
+from core.display_utils import get_backing_scale_factor
 import numpy as np
 import pygame
 
@@ -10,7 +11,7 @@ class StreamOutputHandler(NSObject, protocols=[objc.protocolNamed('SCStreamOutpu
         self = objc.super(StreamOutputHandler, self).init()
         if self is None:
             return None
-        self.latest_surface = None
+        self.latest_frame = None
         return self
 
     def stream_didOutputSampleBuffer_ofType_(self, stream, sampleBuffer, streamType):
@@ -28,8 +29,7 @@ class StreamOutputHandler(NSObject, protocols=[objc.protocolNamed('SCStreamOutpu
             buf = np.frombuffer(pixel_bytes, dtype=np.uint8, count=stride * height)
             arr = buf.reshape((height, stride))
             visible = arr[:, : width * 4].reshape((height, width, 4))
-            surface = pygame.image.frombuffer(visible.tobytes(), (width, height), 'BGRA')
-            self.latest_surface = surface
+            self.latest_frame = (visible.tobytes(), width, height)
         finally:
             CVPixelBufferUnlockBaseAddress(image_buffer, kCVPixelBufferLock_ReadOnly)
 
@@ -46,12 +46,31 @@ class WindowCaptureManager:
                 return
             target_window = None
             for win in content.windows():
-                if win.owningApplication().applicationName() == self.target_app_name:
+                if win.owningApplication().applicationName() == self.target_app_name and win.isOnScreen() and win.frame().size.width > 10 and win.frame().size.height > 10:
                     target_window = win
                     break
 
             if not target_window:
-                print(f'[Capture]: Window {self.target_app_name}')
+                print(f'[Capture]: Window {self.target_app_name} Not Found')
+                return
+            content_filter = SCContentFilter.alloc().initWithDesktopIndependentWindow_(target_window)
+            stream_config = SCStreamConfiguration.alloc().init()
+            backing_scale_factor = get_backing_scale_factor()
+            stream_config.setWidth_(int(target_window.frame().size.width * backing_scale_factor))
+            stream_config.setHeight_(int(target_window.frame().size.height * backing_scale_factor))
+            stream_config.setPixelFormat_(kCVPixelFormatType_32BGRA)
+            self.stream = SCStream.alloc().initWithFilter_configuration_delegate_(content_filter, stream_config, None)
+            success, error = self.stream.addStreamOutput_type_sampleHandlerQueue_error_(self.handler, SCStreamOutputTypeScreen, None)
+            if not success:
+                print(f'[Capture Error] {error}')
+                return
+
+            def start_completion_handler(error):
+                if error:
+                    print(f'[Capture Error] {error}')
+                else:
+                    print(f'[Capture] Started capturing {self.target_app_name}')
+            self.stream.startCaptureWithCompletionHandler_(start_completion_handler)
 
 
-        SCShareableContent.getShareableContentWithCompletionHandler_(completion_handler)
+        SCShareableContent.getShareableContentExcludingDesktopWindows_onScreenWindowsOnly_completionHandler_(True, True, completion_handler)
