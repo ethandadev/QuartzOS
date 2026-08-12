@@ -4,6 +4,19 @@ from ScreenCaptureKit import SCStreamOutputTypeScreen, SCShareableContent, SCCon
 from Quartz import CVPixelBufferLockBaseAddress, CVPixelBufferUnlockBaseAddress, kCVPixelBufferLock_ReadOnly, CVPixelBufferGetHeight, CVPixelBufferGetWidth, CVPixelBufferGetBytesPerRow, CVPixelBufferGetBaseAddress, kCVPixelFormatType_32BGRA
 from core.display_utils import get_backing_scale_factor
 import numpy as np
+import struct
+import subprocess
+import threading
+import pygame
+
+# NOTE: Part of the PyObjC pipeline, currently blocked (see WindowCaptureManager
+# below for details). The stride-padding math here (stride vs width*4) is a
+# SEPARATE, independent copy of the same problem native/capture_helper.swift
+# already solves on its own -- they each strip padding from their own raw
+# buffer before it goes anywhere else. If you're working on the Swift/
+# NativeCaptureManager pipeline, this class is NOT what you need to touch --
+# go to NativeCaptureManager instead. This class only matters again once the
+# pyobjc bug is fixed and WindowCaptureManager is back in use.
 
 class StreamOutputHandler(NSObject, protocols=[objc.protocolNamed('SCStreamOutput')]):
     def init(self):
@@ -32,6 +45,13 @@ class StreamOutputHandler(NSObject, protocols=[objc.protocolNamed('SCStreamOutpu
         finally:
             CVPixelBufferUnlockBaseAddress(image_buffer, kCVPixelBufferLock_ReadOnly)
 
+
+# NOTE: Blocked by a confirmed pyobjc/ScreenCaptureKit bug where
+# SCShareableContent's completion handler crashes with
+# "TypeError: Need 4 arguments, got 3" -- reproduced across
+# macOS 26.0-26.6.1 and pyobjc 11.1-12.2.1. Fully correct otherwise;
+# switch back to this once the upstream bug is fixed.
+# See NativeCaptureManager below for the current working replacement.
 class WindowCaptureManager:
     def __init__(self, target_app_name: str):
         self.target_app_name = target_app_name
@@ -73,3 +93,50 @@ class WindowCaptureManager:
 
 
         SCShareableContent.getShareableContentExcludingDesktopWindows_onScreenWindowsOnly_completionHandler_(True, True, completion_handler)
+
+
+class NativeCaptureManager:
+    def __init__(self, target_app_name: str, helper_path="native/capture_helper"):
+        self.target_app_name = target_app_name
+        self.helper_path = helper_path
+        self.process = None
+        self.latest_frame = None
+        self.thread = None
+        self.running = False
+
+    def _read_exact(self, n):
+        data = b""
+        while len(data) < n:
+            chunk = self.process.stdout.read(n-len(data))
+            if not chunk:
+                raise EOFError("Stream closed unexpectedly")
+            data += chunk
+        return data
+
+    def _read_loop(self):
+        while self.running:
+            frame_header = self._read_exact(8)
+            width, height = struct.unpack("<II", frame_header)
+
+            frame_size = height * width * 4
+
+            self.latest_frame = (self._read_exact(frame_size), width, height)
+            print(f"Got frame: {width}x{height}, {len(self.latest_frame[0])} bytes")
+
+    def start_capture(self):
+        self.process = subprocess.Popen(
+            [self.helper_path, self.target_app_name],
+            stdout=subprocess.PIPE
+        )
+        self.running = True
+        self.thread = threading.Thread(target=self._read_loop, daemon=True)
+        self.thread.start()
+
+    def get_latest_surface(self):
+        if self.latest_frame is None:
+            return None
+        frame_bytes, width, height = self.latest_frame
+        return pygame.image.frombuffer(frame_bytes, (width, height), 'BGRA')
+
+
+

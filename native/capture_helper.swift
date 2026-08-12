@@ -5,24 +5,31 @@ import CoreVideo
 
 _ = NSApplication.shared
 
-
-let content = try await SCShareableContent.current
-let targetAppName = "PyCharm"
-var targetAppWindow: SCWindow? = nil
-
-
-for win in content.windows {
-    if let app = win.owningApplication{
-        if win.isOnScreen && win.frame.width > 10 && win.frame.height > 10 && app.applicationName == targetAppName{
-            targetAppWindow = win
-            print("[Capture Helper] success :D")
-            break
+func findTargetWindow(named targetAppName: String, in content: SCShareableContent) -> SCWindow? {
+    for win in content.windows {
+        if let app = win.owningApplication {
+            if win.isOnScreen && win.frame.width > 10 && win.frame.height > 10 && app.applicationName == targetAppName {
+                return win
+            }
         }
     }
+    return nil
 }
 
+func eprint(_ message: String) {
+    FileHandle.standardError.write((message + "\n").data(using: .utf8)!)
+}
+
+let content = try await SCShareableContent.current
+guard CommandLine.arguments.count > 1 else {
+    eprint("[Capture Helper] Usage: capture_helper <app name>")
+    exit(1)
+}
+let targetAppName = CommandLine.arguments[1]
+let targetAppWindow = findTargetWindow(named: targetAppName, in: content)
+
 guard let window = targetAppWindow else {
-    print("[Capture Helper] Could not find " + targetAppName)
+    eprint("[Capture Helper] Could not find " + targetAppName)
     exit(1)
 }
 
@@ -66,5 +73,18 @@ try stream.addStreamOutput(outputHandler, type: .screen, sampleHandlerQueue:nil)
 try await stream.startCapture()
 
 while true {
-    try await Task.sleep(for: .seconds(60))
+    try await Task.sleep(for: .seconds(1))
+
+    let freshContent = try await SCShareableContent.current
+    guard let freshWindow = freshContent.windows.first(where: { $0.windowID == window.windowID }) else { continue }
+
+    let newWidth = Int(freshWindow.frame.size.width * backingScaleFactor)
+    let newHeight = Int(freshWindow.frame.size.height * backingScaleFactor)
+
+    if newWidth != streamConfig.width || newHeight != streamConfig.height {
+        streamConfig.width = newWidth
+        streamConfig.height = newHeight
+        try await stream.updateConfiguration(streamConfig)
+        eprint("[Capture Helper] Resized to \(newWidth)x\(newHeight)")
+    }
 }
