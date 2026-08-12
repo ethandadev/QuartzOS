@@ -4,7 +4,6 @@ from ScreenCaptureKit import SCStreamOutputTypeScreen, SCShareableContent, SCCon
 from Quartz import CVPixelBufferLockBaseAddress, CVPixelBufferUnlockBaseAddress, kCVPixelBufferLock_ReadOnly, CVPixelBufferGetHeight, CVPixelBufferGetWidth, CVPixelBufferGetBytesPerRow, CVPixelBufferGetBaseAddress, kCVPixelFormatType_32BGRA
 from core.display_utils import get_backing_scale_factor
 import numpy as np
-import pygame
 
 class StreamOutputHandler(NSObject, protocols=[objc.protocolNamed('SCStreamOutput')]):
     def init(self):
