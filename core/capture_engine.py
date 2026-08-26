@@ -27,6 +27,9 @@ import struct
 import subprocess
 import threading
 import pygame
+from pathlib import Path
+
+quartzOS_root_path = Path(__file__).parent.parent
 
 # NOTE: Part of the PyObjC pipeline, currently blocked (see WindowCaptureManager
 # below for details). The stride-padding math here (stride vs width*4) is a
@@ -157,7 +160,7 @@ class NativeCaptureManager:
     consumer drops frames rather than falling behind.
     """
 
-    def __init__(self, target_app_name: str, helper_path="native/capture_helper"):
+    def __init__(self, target_app_name: str, helper_path=quartzOS_root_path / "native" / "capture_helper"):
         """
         Configures the manager. helper_path points at the compiled Swift
         binary; capture does not start until start_capture() is called.
@@ -197,7 +200,6 @@ class NativeCaptureManager:
                 frame_size = height * width * 4
 
                 self.latest_frame = (self._read_exact(frame_size), width, height)
-                print(f"Got frame: {width}x{height}, {len(self.latest_frame[0])} bytes")
 
             except EOFError:
                 self.running = False
