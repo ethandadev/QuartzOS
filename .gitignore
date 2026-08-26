@@ -28,3 +28,7 @@ dist/
 test.py
 test_frame.png
 
+# Compiled native helper -- build from source with native/build.sh,
+# don't commit the binary (see README for why: unverifiable, arch-specific)
+native/capture_helper
+

@@ -63,7 +63,12 @@ As any other project, first download the source files as a zip onto your Desktop
 Then extract the contents of the zip and open a fresh terminal tab inside this new folder.
 
 Execute this command in your terminal to install the required dependencies for this project.
-`python3 -m venv venv && source venv/bin/activate && pip3 -r requirements.txt`
+`python3 -m venv venv && source venv/bin/activate && pip3 install -r requirements.txt`
+
+Quartz also uses a small native Swift helper (`native/capture_helper.swift`) to work around a
+confirmed pyobjc/ScreenCaptureKit bug (see comments in `core/capture_engine.py` for details).
+Build it from source before running Quartz -- review the source first, then run:
+`chmod +x native/build.sh && ./native/build.sh`
 
 Finally to start the os execute this command `python3 start.py`
 

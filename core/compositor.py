@@ -16,7 +16,7 @@ class QuartzCompositor:
         pg.init()
         self.scale_factor = get_backing_scale_factor()
         self.logical_size = (logical_width, logical_height)
-        self.flags = pg.SCALED | pg.RESIZABLE | pg.DOUBLEBUF
+        self.flags = pg.RESIZABLE | pg.DOUBLEBUF
         self.screen = pg.display.set_mode(self.logical_size, flags=self.flags)
         self.clock = pg.time.Clock()
         self.is_running = True
@@ -30,9 +30,7 @@ class QuartzCompositor:
             if event.type == pg.QUIT:
                 self.is_running = False
             elif event.type == pg.VIDEORESIZE:
-                new_w = max(400, event.w)
-                new_h = max(300, event.h)
-                self.logical_size = (new_w, new_h)
+                self.logical_size = (event.w, event.h)
                 self.screen = pg.display.set_mode(self.logical_size, self.flags)
 
     def render_frame(self):

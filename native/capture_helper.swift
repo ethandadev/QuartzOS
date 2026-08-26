@@ -1,3 +1,21 @@
+//
+//  native/capture_helper.swift
+//
+//  Standalone ScreenCaptureKit helper for Quartz OS.
+//
+//  Captures a single application window and streams it to stdout as raw
+//  frames: an 8-byte little-endian header (UInt32 width, UInt32 height)
+//  followed by width * height * 4 bytes of BGRA pixel data, with row
+//  padding already stripped. Diagnostics go to stderr so they can never
+//  corrupt the frame stream on stdout.
+//
+//  This exists because the equivalent PyObjC path is blocked by an upstream
+//  ScreenCaptureKit completion-handler bug -- see core/capture_engine.py.
+//  core/capture_engine.py's NativeCaptureManager is the consumer.
+//
+//  Usage: capture_helper <application name>
+//
+
 import ScreenCaptureKit
 import Foundation
 import AppKit
@@ -5,6 +23,10 @@ import CoreVideo
 
 _ = NSApplication.shared
 
+/// Returns the first on-screen window belonging to `targetAppName`.
+///
+/// Windows smaller than 10x10 are skipped -- apps keep tiny offscreen
+/// helper windows around that would otherwise match first.
 func findTargetWindow(named targetAppName: String, in content: SCShareableContent) -> SCWindow? {
     for win in content.windows {
         if let app = win.owningApplication {
@@ -16,6 +38,7 @@ func findTargetWindow(named targetAppName: String, in content: SCShareableConten
     return nil
 }
 
+/// Writes a diagnostic line to stderr, keeping stdout clean for frame data.
 func eprint(_ message: String) {
     FileHandle.standardError.write((message + "\n").data(using: .utf8)!)
 }
@@ -41,7 +64,13 @@ streamConfig.width = Int(window.frame.size.width * backingScaleFactor)
 streamConfig.height = Int(window.frame.size.height * backingScaleFactor)
 streamConfig.pixelFormat = kCVPixelFormatType_32BGRA
 
+/// Receives frames from the stream and writes them to stdout.
 class OutputHandler: NSObject, SCStreamOutput {
+    /// Called once per captured frame.
+    ///
+    /// Copies each row out of the pixel buffer while it is locked, dropping
+    /// the row padding so the consumer receives a tightly packed image, then
+    /// writes the size header followed by the pixel data.
     func stream(_ stream: SCStream, didOutputSampleBuffer sampleBuffer: CMSampleBuffer, of type: SCStreamOutputType) {
         guard let pixelBuffer = sampleBuffer.imageBuffer else { return }
 
@@ -60,8 +89,8 @@ class OutputHandler: NSObject, SCStreamOutput {
         var header = Data()
         header.append(contentsOf: withUnsafeBytes(of: UInt32(width)) { Array($0) })
         header.append(contentsOf: withUnsafeBytes(of: UInt32(height)) { Array($0) })
+        header.append(frameData)
         FileHandle.standardOutput.write(header)
-        FileHandle.standardOutput.write(frameData)
     }
 }
 

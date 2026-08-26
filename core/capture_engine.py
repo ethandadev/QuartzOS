@@ -1,3 +1,22 @@
+"""
+core/capture_engine.py
+
+Window capture for Quartz OS.
+
+Two pipelines live in this module:
+
+  - NativeCaptureManager (current): spawns native/capture_helper, a small
+    Swift binary that talks to ScreenCaptureKit directly and streams raw
+    BGRA frames back over stdout.
+
+  - WindowCaptureManager + StreamOutputHandler (blocked): the pure-PyObjC
+    equivalent, kept for whenever the upstream pyobjc/ScreenCaptureKit
+    completion-handler bug is fixed. See the note above the class.
+
+Both pipelines hand frames off as (bytes, width, height) tuples so that
+the capture side never touches pygame -- Surfaces are built by whoever
+consumes the frame, on its own thread.
+"""
 import objc
 from Foundation import NSObject
 from ScreenCaptureKit import SCStreamOutputTypeScreen, SCShareableContent, SCContentFilter, SCStreamConfiguration, SCStream
@@ -19,7 +38,17 @@ import pygame
 # pyobjc bug is fixed and WindowCaptureManager is back in use.
 
 class StreamOutputHandler(NSObject, protocols=[objc.protocolNamed('SCStreamOutput')]):
+    """
+    SCStreamOutput delegate for the PyObjC pipeline.
+
+    Receives sample buffers from ScreenCaptureKit, strips row padding, and
+    keeps the newest frame in latest_frame as (bytes, width, height).
+    """
+
     def init(self):
+        """
+        Designated initializer. Returns None if the superclass init fails.
+        """
         self = objc.super(StreamOutputHandler, self).init()
         if self is None:
             return None
@@ -27,6 +56,13 @@ class StreamOutputHandler(NSObject, protocols=[objc.protocolNamed('SCStreamOutpu
         return self
 
     def stream_didOutputSampleBuffer_ofType_(self, stream, sampleBuffer, streamType):
+        """
+        Called by ScreenCaptureKit once per captured frame.
+
+        Copies the pixel data out while the buffer is still locked. That copy
+        is what makes the frame safe to use after the buffer is unlocked and
+        recycled by the system.
+        """
         if streamType != SCStreamOutputTypeScreen:
             return
         image_buffer =  sampleBuffer.imageBuffer()
@@ -53,12 +89,27 @@ class StreamOutputHandler(NSObject, protocols=[objc.protocolNamed('SCStreamOutpu
 # switch back to this once the upstream bug is fixed.
 # See NativeCaptureManager below for the current working replacement.
 class WindowCaptureManager:
+    """
+    Pure-PyObjC capture pipeline, currently blocked upstream.
+
+    Kept alongside NativeCaptureManager so the PyObjC approach can be picked
+    back up without rewriting it. See the note above this class for the bug.
+    """
+
     def __init__(self, target_app_name: str):
+        """
+        Stores the target application name and allocates the stream handler.
+        """
         self.target_app_name = target_app_name
         self.handler = StreamOutputHandler.alloc().init()
         self.stream = None
 
     def start_capture(self):
+        """
+        Finds the target window, builds an SCStream around it, and starts
+        capture. Everything happens inside the async completion handler,
+        so this returns before capture is actually running.
+        """
         def completion_handler(content, error):
             if error or not content:
                 print(f'[Capture Error] {error}')
@@ -96,7 +147,21 @@ class WindowCaptureManager:
 
 
 class NativeCaptureManager:
+    """
+    Current capture pipeline: drives the Swift helper as a subprocess.
+
+    Frames arrive on the helper's stdout as an 8-byte little-endian header
+    (uint32 width, uint32 height) followed by width * height * 4 bytes of
+    BGRA pixel data, already stripped of row padding. A background thread
+    reads them continuously; only the newest frame is kept, so a slow
+    consumer drops frames rather than falling behind.
+    """
+
     def __init__(self, target_app_name: str, helper_path="native/capture_helper"):
+        """
+        Configures the manager. helper_path points at the compiled Swift
+        binary; capture does not start until start_capture() is called.
+        """
         self.target_app_name = target_app_name
         self.helper_path = helper_path
         self.process = None
@@ -105,6 +170,13 @@ class NativeCaptureManager:
         self.running = False
 
     def _read_exact(self, n):
+        """
+        Reads exactly n bytes from the helper's stdout.
+
+        Raises EOFError if the pipe closes first. Short reads are treated as
+        fatal on purpose: the stream has no resync marker, so a partial read
+        would corrupt every frame after it.
+        """
         data = b""
         while len(data) < n:
             chunk = self.process.stdout.read(n-len(data))
@@ -114,16 +186,27 @@ class NativeCaptureManager:
         return data
 
     def _read_loop(self):
+        """
+        Background thread body. Reads header/frame pairs until stopped.
+        """
         while self.running:
-            frame_header = self._read_exact(8)
-            width, height = struct.unpack("<II", frame_header)
+            try:
+                frame_header = self._read_exact(8)
+                width, height = struct.unpack("<II", frame_header)
 
-            frame_size = height * width * 4
+                frame_size = height * width * 4
 
-            self.latest_frame = (self._read_exact(frame_size), width, height)
-            print(f"Got frame: {width}x{height}, {len(self.latest_frame[0])} bytes")
+                self.latest_frame = (self._read_exact(frame_size), width, height)
+                print(f"Got frame: {width}x{height}, {len(self.latest_frame[0])} bytes")
+
+            except EOFError:
+                self.running = False
+
 
     def start_capture(self):
+        """
+        Launches the helper subprocess and starts the reader thread.
+        """
         self.process = subprocess.Popen(
             [self.helper_path, self.target_app_name],
             stdout=subprocess.PIPE
@@ -132,7 +215,20 @@ class NativeCaptureManager:
         self.thread = threading.Thread(target=self._read_loop, daemon=True)
         self.thread.start()
 
+    def stop_capture(self):
+        self.running = False
+        if self.process:
+            self.process.terminate()
+
     def get_latest_surface(self):
+        """
+        Builds a pygame Surface from the most recent frame, or returns None
+        if no frame has arrived yet.
+
+        Intended to be called from the render thread: the reader thread only
+        ever rebinds latest_frame to a new tuple, so this never observes a
+        half-written frame.
+        """
         if self.latest_frame is None:
             return None
         frame_bytes, width, height = self.latest_frame
